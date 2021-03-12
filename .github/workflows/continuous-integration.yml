@@ -1,0 +1,86 @@
+name: continuous-integration
+
+on:
+  push:
+    tags-ignore:
+      - "*"
+    paths-ignore:
+      - "docs/**"
+      - "examples/**"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "examples/**"
+
+env:
+  GO111MODULE: on
+
+
+
+jobs:
+  test:
+    name: Test and vet
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version:
+          - 1.12.x
+          - 1.13.x
+        platform:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    steps:
+      -
+        name: Checkout code
+        uses: actions/checkout@v2
+
+      -
+        name: Install Matrix Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      -
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-test-go-${{ matrix.go-version }}-
+            ${{ runner.os }}-test-go-
+            ${{ runner.os }}-test-
+
+      -
+        name: Test code
+        run : |
+          go test ./pkg/...
+          go vet ./pkg/...
+
+  build:
+    name: Building binaries
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout code
+        uses: actions/checkout@v2
+
+      -
+        name: Install Matrix Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.13
+
+      -
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      -
+        name: Build binaries
+        run: |
+          ./scripts/build_all.sh
